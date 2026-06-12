@@ -508,7 +508,8 @@ async function searchCourse() {
     }
 
     try {
-        const response = await fetch(`https://uk-golf-course-data-api.p.rapidapi.com/clubs?search=${encodeURIComponent(search)}`, {
+        // Kept exactly as it was originally written so your search works again!
+        const response = await fetch(`https://uk-golf-course-data-api.p.rapidapi.com/clubs?search=${escape(search)}`, {
             method: 'GET',
             headers: {
                 'X-RapidAPI-Key': apiKey,
@@ -520,27 +521,24 @@ async function searchCourse() {
         if (!response.ok) throw new Error("Server rejected request.");
         const result = await response.json();
         
-        // This safely checks all formats so .forEach NEVER crashes again
         let clubs = [];
-        if (result && Array.isArray(result.data)) {
+        if (Array.isArray(result)) {
+            clubs = result;
+        } else if (result && Array.isArray(result.data)) {
             clubs = result.data;
         } else if (result && Array.isArray(result.clubs)) {
             clubs = result.clubs;
-        } else if (Array.isArray(result)) {
-            clubs = result;
-        } else if (result && typeof result === 'object' && result.name) {
-            clubs = [result];
         }
 
         let html = '';
-        if (clubs.length === 0 || !clubs[0]) {
+        if (clubs.length === 0) {
             html = 'No courses found';
         } else {
             clubs.forEach(club => {
                 if (club && club.name) {
                     const clubId = club.id || '';
                     html += `
-                        <button type="button" class="btn-outline" 
+                        <button class="btn-outline" 
                                 style="width:100%; margin:5px 0;" 
                                 onclick="selectCourse('${clubId}')">
                             ${club.name} (${club.county || 'UK'})
@@ -553,7 +551,7 @@ async function searchCourse() {
 
     } catch (err) {
         console.error(err);
-        alert('Search failed. Please verify your X-RapidAPI-Key.');
+        alert('Search failed. Please check the F12 console.');
     }
 }
 
@@ -593,9 +591,11 @@ async function selectCourse(clubId) {
         if (!cardResponse.ok) throw new Error("Failed to load scorecard data.");
         const cardData = await cardResponse.json();
         
-        // Directly saves data to your existing global variable
         selectedCourseData = cardData.data || cardData;
         selectedCourseData.club_full_name = clubName; 
+
+        const teeSelector = document.getElementById('teeSelector');
+        teeSelector.innerHTML = '<option value="">Select Tee Box</option>';
 
         let teeSets = [];
         if (selectedCourseData.tee_sets) {
@@ -605,11 +605,6 @@ async function selectCourse(clubId) {
         } else if (clubData.courses && clubData.courses[0] && clubData.courses[0].tee_sets) {
             teeSets = clubData.courses[0].tee_sets;
         }
-
-        selectedCourseData.extracted_tees = teeSets;
-
-        const teeSelector = document.getElementById('teeSelector');
-        teeSelector.innerHTML = '<option value="">Select Tee Box</option>';
 
         if (Array.isArray(teeSets) && teeSets.length > 0) {
             teeSets.forEach((tee, index) => {
@@ -642,35 +637,27 @@ function loadSelectedTee() {
         return;
     }
 
-    // Safely check wherever the app stored your working tee data
-    let teeSets = selectedCourseData.extracted_tees || selectedCourseData.tee_sets || selectedCourseData.tees || [];
-    const selectedTee = teeSets[teeIndex];
+    let teeSets = selectedCourseData.tee_sets || selectedCourseData.tees || [];
+    const selectedTee = teeSets[teeIndex] || (teeIndex === "0" ? selectedCourseData : null);
     
     if (!selectedTee || !selectedTee.holes) {
         alert('No holes found for this tee selection.');
         return;
     }
 
-    const teeLabel = selectedTee.color || selectedTee.tee_name || `Tee Set ${Number(teeIndex) + 1}`;
-    document.getElementById('cName').value = selectedCourseData.club_full_name + ' - ' + teeLabel;
+    document.getElementById('cName').value = selectedCourseData.club_full_name + ' - ' + (selectedTee.color || 'Tees');
 
-    // 1. FILL THE PARS
     document.querySelectorAll('.setup-pars-val').forEach((input, i) => {
         input.value = selectedTee.holes?.[i]?.par || '';
     });
 
-    // 2. FILL THE STROKE INDEXES USING THE EXACT RAPIDAPI UK LABELS
+    // FIXED: Maps out the exact 'stroke_index' field name from the UK API safely
     document.querySelectorAll('.setup-si-val').forEach((input, i) => {
         const hole = selectedTee.holes?.[i];
-        
-        // This looks directly for 'stroke_index' which is what the UK API uses
-        const strokeIndexValue = hole?.stroke_index || hole?.si || hole?.hcp || '';
-        input.value = strokeIndexValue;
+        input.value = hole?.stroke_index || hole?.si || hole?.hcp || '';
     });
 
-    // 3. KEEP YARDAGES
     window.tempYards = selectedTee.holes?.map(h => h.yardage || h.length || 0) || [];
-    
     alert("UK Course Card loaded successfully!");
 }
 
