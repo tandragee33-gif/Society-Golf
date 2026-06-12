@@ -647,26 +647,25 @@ function loadSelectedTee() {
 
     document.getElementById('cName').value = selectedCourseData.club_full_name + ' - ' + (selectedTee.color || 'Tees');
 
-    // 1. Fill out the 18 Pars
+    // 1. Fill Pars
     document.querySelectorAll('.setup-pars-val').forEach((input, i) => {
         input.value = selectedTee.holes?.[i]?.par || '';
     });
 
-    // 2. FIXED: Thoroughly extracts the Stroke Index across all UK API field naming structures
+    // 2. FIXED: Uses 'strokeIndex' with a capital I to match the UK API precisely
     document.querySelectorAll('.setup-si-val').forEach((input, i) => {
         const hole = selectedTee.holes?.[i];
         
-        // Checks every potential database label format (stroke_index, si, hcp, handicap, index)
-        const strokeIndexValue = hole?.stroke_index ?? 
-                                 hole?.si ?? 
-                                 hole?.hcp ?? 
-                                 hole?.handicap ?? 
-                                 hole?.index ?? '';
+        // This looks for the exact dynamic keys the UK database uses
+        const strokeIndexValue = hole?.strokeIndex || 
+                                 hole?.stroke_index || 
+                                 hole?.si || 
+                                 '';
                                  
         input.value = strokeIndexValue;
     });
 
-    // 3. Retain the Yardages
+    // 3. Keep Yardages
     window.tempYards = selectedTee.holes?.map(h => h.yardage || h.length || 0) || [];
     alert("UK Course Card loaded successfully!");
 }
