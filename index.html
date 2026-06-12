@@ -498,12 +498,67 @@ function saveGolfApiKey() {
     localStorage.setItem('golf_api_key', key);
     alert('API Key Saved!');
 }
-async function selectCourse(clubId, escapedClubName) {
+async function searchCourse() {
     const apiKey = (localStorage.getItem('golf_api_key') || '').trim();
-    const clubName = unescape(escapedClubName);
+    const search = document.getElementById('courseSearch').value;
+
+    if (!search) {
+        alert('Enter a course name');
+        return;
+    }
 
     try {
-        // Fetch the individual club profile
+        const response = await fetch(`https://uk-golf-course-data-api.p.rapidapi.com/clubs?search=${encodeURIComponent(search)}`, {
+            method: 'GET',
+            headers: {
+                'X-RapidAPI-Key': apiKey,
+                'X-RapidAPI-Host': 'uk-golf-course-data-api.p.rapidapi.com',
+                'Accept': 'application/json'
+            }
+        });
+
+        if (!response.ok) throw new Error("Server rejected request.");
+        const result = await response.json();
+        
+        let clubs = [];
+        if (Array.isArray(result)) {
+            clubs = result;
+        } else if (result && Array.isArray(result.data)) {
+            clubs = result.data;
+        } else if (result && Array.isArray(result.clubs)) {
+            clubs = result.clubs;
+        }
+
+        let html = '';
+        if (clubs.length === 0) {
+            html = 'No courses found';
+        } else {
+            clubs.forEach(club => {
+                if (club && club.name) {
+                    const clubId = club.id || '';
+                    // Fixed: Cleaned up the click event handler formatting completely
+                    html += `
+                        <button class="btn-outline" 
+                                style="width:100%; margin:5px 0;" 
+                                onclick="selectCourse('${clubId}')">
+                            ${club.name} (${club.county || 'UK'})
+                        </button>
+                    `;
+                }
+            });
+        }
+        document.getElementById('courseResults').innerHTML = html;
+
+    } catch (err) {
+        console.error(err);
+        alert('Search failed. Please check the F12 console.');
+    }
+}
+
+async function selectCourse(clubId) {
+    const apiKey = (localStorage.getItem('golf_api_key') || '').trim();
+
+    try {
         const response = await fetch(`https://uk-golf-course-data-api.p.rapidapi.com/clubs/${clubId}`, {
             method: 'GET',
             headers: {
@@ -515,17 +570,16 @@ async function selectCourse(clubId, escapedClubName) {
 
         if (!response.ok) throw new Error("Failed to load club details.");
         const clubProfile = await response.json();
-        
-        // Handle nested data structures safely
         const clubData = clubProfile.data || clubProfile;
         
-        // Find the course ID attached to this club
+        // Grab the name of the club directly from the profile data
+        const clubName = clubData.name || 'Selected Club';
+        
         let courseId = clubId;
         if (clubData.courses && clubData.courses.length > 0) {
             courseId = clubData.courses[0].id || clubId;
         }
 
-        // Fetch the full scorecard (this contains the layout and the tee sets!)
         const cardResponse = await fetch(`https://uk-golf-course-data-api.p.rapidapi.com/courses/${courseId}/scorecard`, {
             method: 'GET',
             headers: {
@@ -538,14 +592,13 @@ async function selectCourse(clubId, escapedClubName) {
         if (!cardResponse.ok) throw new Error("Failed to load scorecard data.");
         const cardData = await cardResponse.json();
         
-        // Save scorecard data globally for the load function to read later
         selectedCourseData = cardData.data || cardData;
         selectedCourseData.club_full_name = clubName; 
 
         const teeSelector = document.getElementById('teeSelector');
         teeSelector.innerHTML = '<option value="">Select Tee Box</option>';
 
-        // SAFELY isolateting the tee boxes from all possible API fields
+        // Look for tee options inside both the scorecard layout and club profile data
         let teeSets = [];
         if (selectedCourseData.tee_sets) {
             teeSets = selectedCourseData.tee_sets;
@@ -555,33 +608,68 @@ async function selectCourse(clubId, escapedClubName) {
             teeSets = clubData.courses[0].tee_sets;
         }
 
-        // Add options to your drop-down list
         if (Array.isArray(teeSets) && teeSets.length > 0) {
             teeSets.forEach((tee, index) => {
                 const option = document.createElement('option');
                 option.value = index;
-                
-                // Read the tee color or name (e.g., White, Yellow, Red)
                 const label = tee.color || tee.tee_name || `Tee Set ${index + 1}`;
                 option.textContent = `${label} Tees`;
                 teeSelector.appendChild(option);
             });
         } else {
-            // Fallback if no tee sets are formatted as an array
             const option = document.createElement('option');
             option.value = "0";
             option.textContent = "Standard Tees";
             teeSelector.appendChild(option);
         }
 
-        // Make the dropdown and load button visible on your screen
         teeSelector.style.display = 'block';
         document.getElementById('loadTeeBtn').style.display = 'block';
 
     } catch (err) {
         console.error(err);
-        alert('Failed to load tee box options. Check the F12 console.');
+        alert('Failed to load tee box options.');
     }
+}
+
+function loadSelectedTee() {
+    const teeIndex = document.getElementById('teeSelector').value;
+    if (teeIndex === '') {
+        alert('Please select a tee box');
+        return;
+    }
+
+    let teeSets = selectedCourseData.tee_sets || selectedCourseData.tees || [];
+    const selectedTee = teeSets[teeIndex] || (teeIndex === "0" ? selectedCourseData : null);
+    
+    if (!selectedTee || !selectedTee.holes) {
+        alert('No holes found for this tee selection.');
+        return;
+    }
+
+    document.getElementById('cName').value = selectedCourseData.club_full_name + ' - ' + (selectedTee.color || 'Tees');
+
+    document.querySelectorAll('.setup-pars-val').forEach((input, i) => {
+        input.value = selectedTee.holes?.[i]?.par || '';
+    });
+
+    document.querySelectorAll('.setup-si-val').forEach((input, i) => {
+        input.value = selectedTee.holes?.[i]?.stroke_index || selectedTee.holes?.[i]?.si || selectedTee.holes?.[i]?.hcp || '';
+    });
+
+    window.tempYards = selectedTee.holes?.map(h => h.yardage || h.length || 0) || [];
+    alert("UK Course Card loaded successfully!");
+}
+
+function saveData() {
+    localStorage.setItem('g_players', JSON.stringify(players));
+    localStorage.setItem('g_courses', JSON.stringify(courses));
+    localStorage.setItem('g_rounds', JSON.stringify(rounds));
+    localStorage.setItem('g_pairsT', JSON.stringify(pairsT));
+    localStorage.setItem('g_singlesT', JSON.stringify(singlesT));
+    localStorage.setItem('g_pastComps', JSON.stringify(pastComps));
+    localStorage.setItem('g_club', JSON.stringify(club));
+    localStorage.setItem('g_compTeams', JSON.stringify(competitionTeams));
 }
     // BACKUP FUNCTION
     function backupData() {
