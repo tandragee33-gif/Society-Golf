@@ -88,7 +88,7 @@
         <div id="dash-main-view">
 <div class="card" id="past-tourney-list-card">
    <h3>Tournament Titles</h3>
-   <select id="tourneySeason" onchange="renderPastComps()"></select>
+   <select id="tourneySeason" onchange="renderPastComps()" style="width: 100%; padding: 8px; margin-bottom: 12px; border-radius: 5px; border: 1px solid #ccc; font-size: 14px;"></select>
    <div id="past-tourney-list"></div>
 </div>
             <div class="card" id="recent-rounds-card">
@@ -903,9 +903,34 @@ function calculateLiveStableford() {
         loadData();
         if(id === 'tab-team') renderTeamSelector();
         if(id === 'tab-setup') renderAdmin();
-if(id === 'tab-dash') { 
-    closeDetail(); 
-    updateSeasonDropdown(); 
+loadData();
+    if(id === 'tab-team') renderTeamSelector();
+    if(id === 'tab-setup') renderAdmin();
+    
+    if(id === 'tab-dash') { 
+        closeDetail(); 
+        updateSeasonDropdown(); 
+        
+        // --- STEP 2: Collect Unique Tournament Years ---
+        const tSel = document.getElementById('tourneySeason');
+        if (tSel) {
+            let years = [];
+            pastComps.forEach(c => {
+                let d = c.date || c.compDate || '';
+                if (d && d.includes('-')) {
+                    let y = d.split('-')[0]; // Extract '2026' from '2026-06-12'
+                    if (!years.includes(y)) years.push(y);
+                }
+            });
+            years.sort((a, b) => b - a);
+            if (years.length === 0) years.push(new Date().getFullYear().toString());
+            tSel.innerHTML = years.map(yr => `<option value="${yr}">${yr} Season</option>`).join('');
+        }
+        // ----------------------------------------------
+        
+        renderDashboard(); 
+        renderPastComps(); 
+    }
     
     // --- Populate Tournament Years Dropdown ---
     const tSel = document.getElementById('tourneySeason');
@@ -1247,25 +1272,25 @@ function renderPastComps() {
         return;
     }
     
-    // Get the selected year from our new dropdown menu
-    const selectedYear = document.getElementById('tourneySeason') ? document.getElementById('tourneySeason').value : '';
+    // Find the chosen active season year from your new dropdown box
+    const chosenYear = document.getElementById('tourneySeason') ? document.getElementById('tourneySeason').value : '';
     
-    // Filter the tournaments list so it only displays the selected year
+    // Filter tournaments matching only the selected year string
     const filteredComps = pastComps.filter(c => {
-        if (!selectedYear) return true;
-        const compYear = c.date ? c.date.split('-')[0] : '';
-        return compYear === selectedYear;
+        let d = c.date || c.compDate || '';
+        if (!chosenYear) return true; // If no year selection is active, show everything
+        return d.startsWith(chosenYear);
     });
     
     if (filteredComps.length === 0) {
-        listEl.innerHTML = '<p style="color:#666; font-size:13px;">No matching tournaments for this season.</p>';
+        listEl.innerHTML = '<p style="color:#666; font-size:13px;">No tournaments found for this season.</p>';
         return;
     }
     
-    // Display filtered list
+    // Print only the matching rows onto your screen
     listEl.innerHTML = filteredComps.map(c => `
         <div class="item-row" onclick="viewPastCompDetail('${c.id}')">
-            <span><b>${c.title || c.name}</b><br><small>${formatDateDisplay(c.date)}</small></span>
+            <span><b>${c.title || c.name}</b><br><small>${formatDateDisplay(c.date || c.compDate)}</small></span>
             <span>View Details ></span>
         </div>
     `).join('');
