@@ -501,7 +501,7 @@ function saveGolfApiKey() {
 async function searchCourse() {
     const apiKey = localStorage.getItem('golf_api_key');
     const search = document.getElementById('courseSearch').value;
-
+// PIN THIS EXACTLY HERE: alert("Debugging! The key your app is currently using is:\n" + apiKey); if (!search) { alert('Enter a course name'); return; } 
     if (!search) {
         alert('Enter a course name');
         return;
