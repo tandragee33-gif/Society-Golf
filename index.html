@@ -1257,14 +1257,18 @@ function renderPastComps() {
         return;
     }
     
-    // Read the current chosen season value
+    // 1. Get the selected year (e.g., "2026")
     const chosenYear = document.getElementById('tourneySeason') ? document.getElementById('tourneySeason').value : '';
     
-    // Filter out rows that don't match our chosen season string
+    // 2. Filter tournaments by seeing if the text anywhere in their date contains our year
     const filteredComps = pastComps.filter(c => {
-        let d = c.date || c.compDate || '';
-        if (!chosenYear) return true;
-        return d.startsWith(chosenYear);
+        if (!chosenYear) return true; // Show all if no year selected
+        
+        // Convert whatever date style this tournament has into text
+        let d = String(c.date || c.compDate || '');
+        
+        // Check if the year number exists anywhere inside that date text
+        return d.includes(chosenYear);
     });
     
     if (filteredComps.length === 0) {
@@ -1272,6 +1276,7 @@ function renderPastComps() {
         return;
     }
     
+    // 3. Print the tournaments onto your screen safely
     listEl.innerHTML = filteredComps.map(c => `
         <div class="item-row" onclick="viewPastCompDetail('${c.id}')">
             <span><b>${c.title || c.name}</b><br><small>${formatDateDisplay(c.date || c.compDate)}</small></span>
