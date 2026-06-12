@@ -136,9 +136,8 @@
             <input type="hidden" id="editRoundId">
             <label style="font-size:12px;">Date (dd/mm/yyyy):</label>
             <input type="text" id="rDate" placeholder="dd/mm/yyyy">
-            <select id="rCourse"
-        onchange="updateScorecardInfo()"><option value="">Select Course</option></select>
-            <select id="rPlayer"><option value="">Select Player</option></select>
+            <select id="rCourse" onchange="updateScorecardInfo(); calculateLiveStableford()"> <option value="">Select Course</option></select>
+            <select id="rPlayer" onchange="calculateLiveStableford()"> <option value="">Select Player</option></select>
             <div id="scorecard-info"
      style="overflow-x:auto;
             margin-bottom:12px;
@@ -197,6 +196,12 @@
         </select>
     </div>
 </div>
+<div id="live-totals-display" style="margin: 15px 0; padding: 12px; background: #e8f5e9; border: 2px solid #2e7d32; border-radius: 8px; font-weight: bold; display: flex; justify-content: space-around; font-size: 16px;">
+  <div>Total Gross: <span id="live-total-gross" style="color: #333;">0</span></div>
+  <div>Total Stableford: <span id="live-total-points" style="color: #2e7d32;">0</span></div>
+</div>
+
+<button class="btn" onclick="saveRound()">Save Result</button>
             <button class="btn" onclick="saveRound()">Save Result</button>
             <button class="btn-outline" style="width:100%" onclick="resetRoundForm()">Clear / New</button>
         </div>
@@ -791,62 +796,34 @@ localStorage.setItem('g_compTeams', JSON.stringify(competitionTeams));
     }
 
 function setupInputGrids() {
-
-    // ROUND SCORECARD
-    const roundEl =
-        document.getElementById('round-scores');
-
-    roundEl.innerHTML = '';
-
+  // ROUND SCORECARD
+  const roundEl = document.getElementById('round-scores');
+  roundEl.innerHTML = '';
+  
+  for (let i = 1; i <= 18; i++) {
+    roundEl.innerHTML += `
+      <div class="hole-input" style="border:1px solid #ddd; border-radius:10px; padding:8px; background:#fafafa; text-align:center;">
+        <div style="font-size:11px; color:#666;">Hole</div>
+        <div style="font-weight:bold; font-size:16px;">${i}</div>
+        <input type="number" inputmode="numeric" class="round-scores-val" 
+               style="font-size:20px; font-weight:bold; text-align:center; margin-top:8px;"
+               oninput="moveToNext(this); colorLive(this); calculateLiveStableford()">
+        <div style="font-size:11px; margin-top:4px; color:#666;">Pts: <span class="live-hole-pts">0</span></div>
+      </div>`;
+  }
+  
+  // COURSE SETUP GRIDS
+  ['setup-pars', 'setup-si'].forEach(g => {
+    const el = document.getElementById(g);
+    el.innerHTML = '';
     for (let i = 1; i <= 18; i++) {
-
-        roundEl.innerHTML += `
-        <div class="hole-input"
-             style="border:1px solid #ddd;
-                    border-radius:10px;
-                    padding:8px;
-                    background:#fafafa;
-                    text-align:center;">
-
-            <div style="font-size:11px;
-                        color:#666;">
-                Hole
-            </div>
-
-            <div style="font-weight:bold;
-                        font-size:16px;">
-                ${i}
-            </div>
-
-            <input type="number"
-                   inputmode="numeric"
-                   class="round-scores-val"
-                   style="font-size:20px;
-                          font-weight:bold;
-                          text-align:center;
-                          margin-top:8px;"
-                   oninput="moveToNext(this); colorLive(this)">
+      el.innerHTML += `
+        <div class="hole-input">
+          <label>${i}</label>
+          <input type="number" class="${g}-val">
         </div>`;
     }
-
-    // COURSE SETUP GRIDS
-    ['setup-pars', 'setup-si'].forEach(g => {
-
-        const el =
-            document.getElementById(g);
-
-        el.innerHTML = '';
-
-        for (let i = 1; i <= 18; i++) {
-
-            el.innerHTML += `
-            <div class="hole-input">
-                <label>${i}</label>
-                <input type="number"
-                       class="${g}-val">
-            </div>`;
-        }
-    });
+  });
 }
 function moveToNext(input) {
 
@@ -867,7 +844,56 @@ function moveToNext(input) {
         inputs[index + 1].focus();
     }
 }
+function calculateLiveStableford() {
+  const courseId = document.getElementById('rCourse').value;
+  const playerId = document.getElementById('rPlayer').value;
+  const scoreInputs = document.querySelectorAll('.round-scores-val');
+  const pointLabels = document.querySelectorAll('.live-hole-pts');
+  
+  let totalGross = 0;
+  let totalPoints = 0;
 
+  // Find the selected course and player from memory arrays
+  const course = courses.find(c => c.id == courseId);
+  const player = players.find(p => p.id == playerId);
+  
+  const pars = course ? course.pars || [] : [];
+  const siArray = course ? course.si || [] : [];
+  const playerHandicap = player ? parseFloat(player.handicap) || player.hc || 0 : 0;
+
+  scoreInputs.forEach((input, i) => {
+    const gross = parseInt(input.value) || 0;
+    let holePoints = 0;
+    
+    if (gross > 0) {
+      totalGross += gross;
+      
+      if (pars[i] && siArray[i]) {
+        const par = parseInt(pars[i]);
+        const si = parseInt(siArray[i]);
+        
+        // Calculate handicap stroke adjustments per hole rule
+        let extraStrokes = Math.floor(playerHandicap / 18);
+        if (playerHandicap % 18 >= si) {
+          extraStrokes += 1;
+        }
+        
+        // Calculate Net Score and standard Stableford math points
+        const netScore = gross - extraStrokes;
+        holePoints = par - netScore + 2;
+        if (holePoints < 0) holePoints = 0;
+      }
+    }
+    
+    // Set the point label for the single hole box
+    pointLabels[i].innerText = holePoints;
+    totalPoints += holePoints;
+  });
+
+  // Put overall total values into the HTML box above the Save button
+  document.getElementById('live-total-gross').innerText = totalGross;
+  document.getElementById('live-total-points').innerText = totalPoints;
+}
     function showTab(id) {
         document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
         document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
@@ -1340,6 +1366,14 @@ document.querySelectorAll('.round-scores-val')
     .forEach(i => {
         i.style.color = '#333';
     });
+function resetRoundForm() {
+    // This clears the live scores and points displays when starting over
+    if (document.getElementById('live-total-gross')) {
+        document.getElementById('live-total-gross').innerText = '0';
+        document.getElementById('live-total-points').innerText = '0';
+        document.querySelectorAll('.live-hole-pts').forEach(lbl => lbl.innerText = '0');
+    }
+}
  document.getElementById('rLongDrive').value = 'No';
 document.getElementById('rNearPin').value = 'No';
         const now = new Date();
