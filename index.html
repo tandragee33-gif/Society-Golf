@@ -86,11 +86,10 @@
     <!-- DASHBOARD (HISTORY) -->
     <div id="tab-dash" class="tab-content">
         <div id="dash-main-view">
-<div class="card" id="past-tourney-list-card">
-   <h3>Tournament Titles</h3>
-   <select id="tourneySeason" onchange="renderPastComps()" style="width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ccc; border-radius: 8px; font-size: 14px; box-sizing: border-box;"></select>
-   <div id="past-tourney-list"></div>
-</div>
+            <div class="card" id="past-tourney-list-card">
+                <h3>Tournament Titles</h3>
+                <div id="past-tourney-list"></div>
+            </div>
             <div class="card" id="recent-rounds-card">
                 <h3>Recent Rounds</h3>
                 <select id="dashSeason" onchange="renderDashboard()"></select>
@@ -903,32 +902,7 @@ function calculateLiveStableford() {
         loadData();
         if(id === 'tab-team') renderTeamSelector();
         if(id === 'tab-setup') renderAdmin();
-if(id === 'tab-dash') { 
-        closeDetail(); 
-        updateSeasonDropdown(); 
-        
-        // --- Populate Tournament Season Dropdown ---
-        const tSel = document.getElementById('tourneySeason');
-        if (tSel) {
-            let years = [];
-            if (pastComps && pastComps.length > 0) {
-                pastComps.forEach(c => {
-                    let d = c.date || c.compDate || '';
-                    if (d && d.includes('-')) {
-                        let y = d.split('-')[0]; // Grabs '2026' from '2026-06-12'
-                        if (!years.includes(y)) years.push(y);
-                    }
-                });
-            }
-            years.sort((a, b) => b - a);
-            if (years.length === 0) years.push(new Date().getFullYear().toString());
-            tSel.innerHTML = years.map(yr => `<option value="${yr}">${yr} Season</option>`).join('');
-        }
-        // -------------------------------------------
-        
-        renderDashboard(); 
-        renderPastComps();
-    }
+        if(id === 'tab-dash') { closeDetail(); updateSeasonDropdown(); renderDashboard(); renderPastComps(); }
         if(id === 'tab-stats') renderStats();
         if(id === 'tab-comp') populateRoundSelectors();
         if(id === 'tab-doubles') {
@@ -1248,41 +1222,11 @@ function resetDoublesSelection() {
     showDbStep1(); 
 }
 
-function renderPastComps() {
-    const listEl = document.getElementById('past-tourney-list');
-    if (!listEl) return;
-    
-    if (!pastComps || pastComps.length === 0) {
-        listEl.innerHTML = '<p style="color:#666; font-size:13px;">No tournaments saved yet.</p>';
-        return;
+    function renderPastComps() {
+        const list = document.getElementById('past-tourney-list');
+        if(pastComps.length === 0) { list.innerHTML = "<p style='font-size:12px; color:#999;'>No tournament records.</p>"; return; }
+        list.innerHTML = pastComps.sort((a,b)=>b.id - a.id).map(c => `<div class="item-row"><span><b>${c.winner}</b><br><small>${c.type} - ${c.date} ${c.detail ? '('+c.detail+')' : ''}</small></span><button class="btn-del" onclick="deletePastComp(${c.id})">X</button></div>`).join('');
     }
-    
-    const chosenYear = document.getElementById('tourneySeason') ? document.getElementById('tourneySeason').value : '';
-    
-    const filteredComps = pastComps.filter(c => {
-        if (!chosenYear) return true;
-        let d = String(c.date || c.compDate || c.tournamentDate || '');
-        return d.includes(chosenYear);
-    });
-    
-    if (filteredComps.length === 0) {
-        listEl.innerHTML = '<p style="color:#666; font-size:13px;">No tournaments found for this season.</p>';
-        return;
-    }
-    
-    // Safety check fallback to display whatever text naming field exists
-    listEl.innerHTML = filteredComps.map(c => {
-        const displayTitle = c.title || c.name || c.compTitle || c.tournamentName || 'Unnamed Tournament';
-        const displayDate = c.date || c.compDate || c.tournamentDate || '';
-        
-        return `
-            <div class="item-row" onclick="viewPastCompDetail('${c.id}')">
-                <span><b>${displayTitle}</b><br><small>${formatDateDisplay(displayDate)}</small></span>
-                <span>View Details ></span>
-            </div>
-        `;
-    }).join('');
-}
 
     function deletePastComp(id) { if(confirm("Delete?")) { pastComps = pastComps.filter(c => c.id !== id); saveData(); renderPastComps(); } }
 
