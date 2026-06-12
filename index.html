@@ -508,7 +508,7 @@ async function searchCourse() {
     }
 
     try {
-        // Routed via RapidAPI's official gateway mirror for ukgolfapi.uk
+        // Direct call to RapidAPI's UK Golf Club Directory endpoint
         const response = await fetch(`https://uk-golf-course-data-api.p.rapidapi.com/clubs?search=${encodeURIComponent(search)}`, {
             method: 'GET',
             headers: {
@@ -518,18 +518,21 @@ async function searchCourse() {
             }
         });
 
-        if (!response.ok) throw new Error("API Key invalid or rate limit reached.");
-        const data = await response.json();
+        if (!response.ok) throw new Error("Invalid RapidAPI Key or daily limit reached.");
+        const result = await response.json();
+        
+        // RapidAPI wraps collections inside a .data object
+        const clubs = result.data || result;
 
         let html = '';
-        if (!data || data.length === 0) {
+        if (!clubs || clubs.length === 0) {
             html = 'No courses found';
         } else {
-            data.forEach(club => {
+            clubs.forEach(club => {
                 html += `
                     <button class="btn-outline" 
                             style="width:100%; margin:5px 0;" 
-                            onclick="selectCourse('${club.id}')">
+                            onclick="selectCourse('${club.id}', '${escape(club.name)}')">
                         ${club.name} (${club.county || 'UK'})
                     </button>
                 `;
@@ -540,15 +543,17 @@ async function searchCourse() {
 
     } catch (err) {
         console.error(err);
-        alert('Search failed: Please verify your RapidAPI Key is entered correctly.');
+        alert('Search failed: Please verify your X-RapidAPI-Key is entered correctly.');
     }
 }
 
-async function selectCourse(courseId) {
+async function selectCourse(clubId, escapedClubName) {
     const apiKey = localStorage.getItem('golf_api_key');
+    const clubName = unescape(escapedClubName);
 
     try {
-        const response = await fetch(`https://uk-golf-course-data-api.p.rapidapi.com/clubs/${courseId}`, {
+        // Step 1: Get the courses attached to this club profile
+        const response = await fetch(`https://uk-golf-course-data-api.p.rapidapi.com/clubs/${clubId}`, {
             method: 'GET',
             headers: {
                 'X-RapidAPI-Key': apiKey,
@@ -557,22 +562,37 @@ async function selectCourse(courseId) {
             }
         });
 
-        const data = await response.json();
-        selectedCourseData = data;
+        const clubProfile = await response.json();
+        const clubData = clubProfile.data || clubProfile;
+        
+        // Grab the first available course ID string from their array layout
+        const courseId = clubData.courses?.[0]?.id || clubId;
+
+        // Step 2: Fetch the comprehensive hole-by-hole scorecard (includes Stroke Indexes!)
+        const cardResponse = await fetch(`https://uk-golf-course-data-api.p.rapidapi.com/courses/${courseId}/scorecard`, {
+            method: 'GET',
+            headers: {
+                'X-RapidAPI-Key': apiKey,
+                'X-RapidAPI-Host': 'uk-golf-course-data-api.p.rapidapi.com',
+                'Accept': 'application/json'
+            }
+        });
+
+        const cardData = await cardResponse.json();
+        
+        // Stash the scorecard data payload globally
+        selectedCourseData = cardData.data || cardData;
+        selectedCourseData.club_full_name = clubName; 
 
         const teeSelector = document.getElementById('teeSelector');
         teeSelector.innerHTML = '<option value="">Select Tee Box</option>';
 
-        if (data.courses) {
-            data.courses.forEach((course, courseIdx) => {
-                if (course.tee_sets) {
-                    course.tee_sets.forEach((tee, teeIdx) => {
-                        const option = document.createElement('option');
-                        option.value = `${courseIdx}-${teeIdx}`;
-                        option.textContent = `${course.name || 'Default'} - ${tee.color} Tees`;
-                        teeSelector.appendChild(option);
-                    });
-                }
+        if (selectedCourseData.tee_sets) {
+            selectedCourseData.tee_sets.forEach((tee, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `${tee.color || tee.tee_name || 'Standard'} Tees`;
+                teeSelector.appendChild(option);
             });
         }
 
@@ -581,40 +601,41 @@ async function selectCourse(courseId) {
 
     } catch (err) {
         console.error(err);
-        alert('Failed to load tee boxes');
+        alert('Failed to load UK scorecard metrics.');
     }
 }
 
 function loadSelectedTee() {
-    const teeValue = document.getElementById('teeSelector').value;
+    const teeIndex = document.getElementById('teeSelector').value;
 
-    if (teeValue === '') {
+    if (teeIndex === '') {
         alert('Please select a tee box');
         return;
     }
 
-    const [courseIdx, teeIdx] = teeValue.split('-').map(Number);
-    const selectedTee = selectedCourseData.courses?.[courseIdx]?.tee_sets?.[teeIdx];
-
+    const selectedTee = selectedCourseData.tee_sets?.[teeIndex];
     if (!selectedTee || !selectedTee.holes) {
-        alert('No hole data found for this selection.');
+        alert('No holes found for this tee color.');
         return;
     }
 
-    document.getElementById('cName').value = selectedCourseData.name + ' - ' + selectedTee.color;
+    // Assign names to your input fields
+    document.getElementById('cName').value = selectedCourseData.club_full_name + ' - ' + (selectedTee.color || 'Tees');
 
+    // LOAD THE 18 PAR VALUES
     document.querySelectorAll('.setup-pars-val').forEach((input, i) => {
         input.value = selectedTee.holes?.[i]?.par || '';
     });
 
-    // Successfully maps the stroke index from the UK layout
+    // LOAD THE 18 STROKE INDEX VALUES (Natively reads the accurate UK stroke_index field!)
     document.querySelectorAll('.setup-si-val').forEach((input, i) => {
         input.value = selectedTee.holes?.[i]?.stroke_index || selectedTee.holes?.[i]?.si || '';
     });
 
+    // PRESERVE THE YARDAGES
     window.tempYards = selectedTee.holes?.map(h => h.yardage || h.length || 0) || [];
 
-    alert("UK Course Card loaded successfully with Stroke Index!");
+    alert("UK Course Card loaded successfully with Stroke Indexes!");
 }
 
 function saveData() {
