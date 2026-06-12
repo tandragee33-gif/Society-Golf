@@ -512,7 +512,7 @@ async function searchCourse() {
     }
 
     try {
-        const response = await fetch(`https://uk-golf-course-data-api.p.rapidapi.com/clubs?search=${encodeURIComponent(search)}`, {
+       const response = await fetch(`https://uk-golf-course-data-api.p.rapidapi.com/clubs?search=${encodeURIComponent(search.toLowerCase())}`, { 
             method: 'GET',
             headers: {
                 'X-RapidAPI-Key': apiKey,
