@@ -498,9 +498,6 @@ function saveGolfApiKey() {
     localStorage.setItem('golf_api_key', key);
     alert('API Key Saved!');
 }
-// Ensure this variable sits cleanly at the top of your script area
-var selectedCourseData = null;
-
 async function searchCourse() {
     const apiKey = (localStorage.getItem('golf_api_key') || '').trim();
     const search = document.getElementById('courseSearch').value;
@@ -593,6 +590,7 @@ async function selectCourse(clubId) {
         if (!cardResponse.ok) throw new Error("Failed to load scorecard data.");
         const cardData = await cardResponse.json();
         
+        // Using the existing global variable directly without re-declaring it
         selectedCourseData = cardData.data || cardData;
         selectedCourseData.club_full_name = clubName; 
 
@@ -605,7 +603,6 @@ async function selectCourse(clubId) {
             teeSets = clubData.courses[0].tee_sets;
         }
 
-        // Store the correct reference array safely
         selectedCourseData.extracted_tees = teeSets;
 
         const teeSelector = document.getElementById('teeSelector');
@@ -653,16 +650,14 @@ function loadSelectedTee() {
     const teeLabel = selectedTee.color || selectedTee.tee_name || `Tee Set ${Number(teeIndex) + 1}`;
     document.getElementById('cName').value = selectedCourseData.club_full_name + ' - ' + teeLabel;
 
-    // 1. Populate the 18 Pars
+    // 1. Populate Pars
     document.querySelectorAll('.setup-pars-val').forEach((input, i) => {
         input.value = selectedTee.holes?.[i]?.par || '';
     });
 
-    // 2. Populate the 18 Stroke Indexes
+    // 2. Populate Stroke Indexes (Checking both common API formats)
     document.querySelectorAll('.setup-si-val').forEach((input, i) => {
         const holeData = selectedTee.holes?.[i];
-        
-        // Maps out all possible field names used by the UK database
         const strokeIndexValue = holeData?.stroke_index || 
                                  holeData?.si || 
                                  holeData?.hcp || 
@@ -670,7 +665,7 @@ function loadSelectedTee() {
         input.value = strokeIndexValue;
     });
 
-    // 3. Keep Yardages intact
+    // 3. Keep Yardages
     window.tempYards = selectedTee.holes?.map(h => h.yardage || h.length || 0) || [];
     alert("UK Course Card loaded successfully!");
 }
