@@ -585,7 +585,6 @@ function loadSelectedTee() {
         return;
     }
 
-    // Direct access to the standardized array we saved above
     let teeSets = selectedCourseData.extracted_tees || selectedCourseData.tee_sets || selectedCourseData.tees || [];
     const selectedTee = teeSets[teeIndex];
     
@@ -597,23 +596,35 @@ function loadSelectedTee() {
     const teeLabel = selectedTee.color || selectedTee.tee_name || `Tee Set ${Number(teeIndex) + 1}`;
     document.getElementById('cName').value = selectedCourseData.club_full_name + ' - ' + teeLabel;
 
-    // Load the 18 Pars
+    // 1. Load the 18 Pars
     document.querySelectorAll('.setup-pars-val').forEach((input, i) => {
         input.value = selectedTee.holes?.[i]?.par || '';
     });
 
-    // Load the 18 Stroke Indexes
-    document.querySelectorAll('.setup-si-val').forEach((input, i) => {
-        const strokeIndexValue = selectedTee.holes?.[i]?.stroke_index || 
-                                 selectedTee.holes?.[i]?.si || 
-                                 selectedTee.holes?.[i]?.hcp || '';
+    // 2. Load the 18 Stroke Indexes
+    const siInputs = document.querySelectorAll('.setup-si-val');
+    
+    // SAFETY CHECK: If this pops up, we know the HTML boxes are named something else!
+    if (siInputs.length === 0) {
+        alert("DEBUG CHECK: The code cannot find any inputs with the class '.setup-si-val' on your screen!");
+    }
+
+    siInputs.forEach((input, i) => {
+        const holeData = selectedTee.holes?.[i];
+        
+        // This thoroughly checks every single naming variation the UK database uses
+        const strokeIndexValue = holeData?.stroke_index || 
+                                 holeData?.si || 
+                                 holeData?.hcp || 
+                                 holeData?.handicap || '';
+                                 
         input.value = strokeIndexValue;
     });
 
-    // Preserve Yardages
+    // 3. Preserve Yardages
     window.tempYards = selectedTee.holes?.map(h => h.yardage || h.length || 0) || [];
     
-    alert("UK Course Card loaded successfully with Stroke Indexes!");
+    alert("UK Course Card loaded successfully!");
 }
 
 function saveData() {
