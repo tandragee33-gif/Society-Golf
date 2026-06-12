@@ -508,7 +508,6 @@ async function searchCourse() {
     }
 
     try {
-        // MATCHING THE DASHBOARD: Using the direct .p.rapidapi.com endpoint path
         const response = await fetch(`https://uk-golf-course-data-api.p.rapidapi.com/clubs?search=${encodeURIComponent(search)}`, {
             method: 'GET',
             headers: {
@@ -518,31 +517,45 @@ async function searchCourse() {
             }
         });
 
-        if (!response.ok) throw new Error("Server rejected credentials.");
+        if (!response.ok) throw new Error("Server rejected request.");
         const result = await response.json();
         
-        // Isolate the array list returned by RapidAPI
-        const clubs = result.data || result;
+        // FIXING THE TYPEERROR: Extracting the array data safely no matter how RapidAPI nests it
+        let clubs = [];
+        if (Array.isArray(result)) {
+            clubs = result;
+        } else if (result && Array.isArray(result.data)) {
+            clubs = result.data;
+        } else if (result && Array.isArray(result.clubs)) {
+            clubs = result.clubs;
+        } else if (result && typeof result === 'object') {
+            // Fallback if it's an object containing clubs
+            clubs = Object.values(result).filter(item => item && typeof item === 'object' && 'name' in item);
+        }
 
         let html = '';
-        if (!clubs || clubs.length === 0) {
+        if (clubs.length === 0) {
             html = 'No courses found';
         } else {
             clubs.forEach(club => {
-                html += `
-                    <button class="btn-outline" 
-                            style="width:100%; margin:5px 0;" 
-                            onclick="selectCourse('${club.id}', '${escape(club.name)}')">
-                        ${club.name} (${club.county || 'UK'})
-                    </button>
-                `;
+                // Ensure we have a valid name and ID before printing the button
+                if (club && club.name) {
+                    const clubId = club.id || club._id || '';
+                    html += `
+                        <button class="btn-outline" 
+                                style="width:100%; margin:5px 0;" 
+                                onclick="selectCourse('${clubId}', '${escape(club.name)}')">
+                            ${club.name} (${club.county || 'UK'})
+                        </button>
+                    `;
+                }
             });
         }
         document.getElementById('courseResults').innerHTML = html;
 
     } catch (err) {
         console.error(err);
-        alert('Search failed. Check your browser console (F12) to see if CORS or keys are blocking the request.');
+        alert('Search failed. Please check the F12 console.');
     }
 }
 
@@ -563,8 +576,11 @@ async function selectCourse(clubId, escapedClubName) {
         const clubProfile = await response.json();
         const clubData = clubProfile.data || clubProfile;
         
-        // Isolate course index
-        const courseId = clubData.courses?.[0]?.id || clubId;
+        // Safely extract the first course ID
+        let courseId = clubId;
+        if (clubData.courses && clubData.courses.length > 0) {
+            courseId = clubData.courses[0].id || clubId;
+        }
 
         const cardResponse = await fetch(`https://uk-golf-course-data-api.p.rapidapi.com/courses/${courseId}/scorecard`, {
             method: 'GET',
@@ -582,11 +598,13 @@ async function selectCourse(clubId, escapedClubName) {
         const teeSelector = document.getElementById('teeSelector');
         teeSelector.innerHTML = '<option value="">Select Tee Box</option>';
 
-        if (selectedCourseData.tee_sets) {
-            selectedCourseData.tee_sets.forEach((tee, index) => {
+        // Read tee sets safely
+        const teeSets = selectedCourseData.tee_sets || selectedCourseData.tees || [];
+        if (Array.isArray(teeSets)) {
+            teeSets.forEach((tee, index) => {
                 const option = document.createElement('option');
                 option.value = index;
-                option.textContent = `${tee.color || 'Standard'} Tees`;
+                option.textContent = `${tee.color || tee.tee_name || 'Standard'} Tees`;
                 teeSelector.appendChild(option);
             });
         }
@@ -607,9 +625,11 @@ function loadSelectedTee() {
         return;
     }
 
-    const selectedTee = selectedCourseData.tee_sets?.[teeIndex];
+    const teeSets = selectedCourseData.tee_sets || selectedCourseData.tees || [];
+    const selectedTee = teeSets[teeIndex];
+    
     if (!selectedTee || !selectedTee.holes) {
-        alert('No holes found for this tee color.');
+        alert('No holes found for this tee selection.');
         return;
     }
 
@@ -620,7 +640,7 @@ function loadSelectedTee() {
     });
 
     document.querySelectorAll('.setup-si-val').forEach((input, i) => {
-        input.value = selectedTee.holes?.[i]?.stroke_index || selectedTee.holes?.[i]?.si || '';
+        input.value = selectedTee.holes?.[i]?.stroke_index || selectedTee.holes?.[i]?.si || selectedTee.holes?.[i]?.hcp || '';
     });
 
     window.tempYards = selectedTee.holes?.map(h => h.yardage || h.length || 0) || [];
