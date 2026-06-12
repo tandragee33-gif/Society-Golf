@@ -86,7 +86,7 @@
     <!-- DASHBOARD (HISTORY) -->
     <div id="tab-dash" class="tab-content">
         <div id="dash-main-view">
- <div class="card" id="past-tourney-list-card">
+<div class="card" id="past-tourney-list-card">
     <h3>Tournament Titles</h3>
     <select id="tourneySeason" onchange="renderPastComps()"></select>
     <div id="past-tourney-list"></div>
@@ -1012,7 +1012,7 @@ const yards =
         if(club.logo) { logo.src = club.logo; logo.style.display = 'block'; }
     }
 
-   function updateSeasonDropdown() {
+ function updateSeasonDropdown() {
     // Collects all unique years found in your rounds data
     const seasons = [...new Set(rounds.map(r => r.season))].sort().reverse();
     if(seasons.length === 0) seasons.push(new Date().getFullYear().toString());
@@ -1020,9 +1020,13 @@ const yards =
     // Create the options HTML string
     const optionsHtml = seasons.map(s => `<option value="${s}">${s} Season</option>`).join('');
     
-    // Update both dropdown menus at the same time
-    document.getElementById('dashSeason').innerHTML = optionsHtml;
-    document.getElementById('tourneySeason').innerHTML = optionsHtml;
+    // Update both dropdown menus at the same time safely
+    if (document.getElementById('dashSeason')) {
+        document.getElementById('dashSeason').innerHTML = optionsHtml;
+    }
+    if (document.getElementById('tourneySeason')) {
+        document.getElementById('tourneySeason').innerHTML = optionsHtml;
+    }
 }
 
     function renderDashboard() {
@@ -1232,33 +1236,33 @@ function resetDoublesSelection() {
 function renderPastComps() {
     const list = document.getElementById('past-tourney-list');
     
-    // 1. If there are no overall records at all, stop and display a message
+    // 1. If there are no tournament records anywhere, stop and display basic message
     if(pastComps.length === 0) { 
         list.innerHTML = "<p style='font-size:12px; color:#999;'>No tournament records.</p>";
         return; 
     }
     
-    // 2. Read the year selected in your new dropdown menu
+    // 2. Read the year selected inside your new dropdown menu
     const selectedSeason = document.getElementById('tourneySeason') ? document.getElementById('tourneySeason').value : '';
     
-    // 3. Filter tournaments to match the selected year
+    // 3. Filter the tournaments list dynamically
     const filteredTourneys = pastComps.filter(c => {
         if (!selectedSeason) return true;
-        // Grabs the 4 digit year from the tournament's saved date string
-        return c.date && c.date.substring(0, 4) === selectedSeason;
+        // Checks if the date string contains or matches the selected 4-digit year string
+        return c.date && c.date.includes(selectedSeason);
     });
 
-    // 4. If no records match that specific season dropdown choice
+    // 4. If no tournaments match that specific year dropdown selection
     if(filteredTourneys.length === 0) { 
         list.innerHTML = "<p style='font-size:12px; color:#999; padding: 4px;'>No tournament records for this season.</p>";
         return; 
     }
     
-    // 5. Render rows exactly like your original layout, but using the filtered list
+    // 5. Render your rows exactly like your original structure, but using the filtered rows
     list.innerHTML = filteredTourneys.sort((a,b)=>b.id - a.id).map(c =>
         `<div class="item-row">
             <span><b>${c.winner}</b><br>
-            <small>${c.type} - ${formatDateDisplay(c.date)} ${c.detail ? '('+c.detail+')' : ''}</small></span>
+            <small>${c.type} - ${c.date} ${c.detail ? '('+c.detail+')' : ''}</small></span>
             <button class="btn-del" onclick="deletePastComp(${c.id})">X</button>
         </div>`
     ).join('');
