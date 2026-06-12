@@ -652,15 +652,16 @@ function loadSelectedTee() {
         input.value = selectedTee.holes?.[i]?.par || '';
     });
 
-    // 2. FIXED: Uses 'strokeIndex' with a capital I to match the UK API precisely
+    // 2. FIXED: Extracts the Stroke Indexes by checking every possible format used by the UK API
     document.querySelectorAll('.setup-si-val').forEach((input, i) => {
         const hole = selectedTee.holes?.[i];
         
-        // This looks for the exact dynamic keys the UK database uses
-        const strokeIndexValue = hole?.strokeIndex || 
-                                 hole?.stroke_index || 
-                                 hole?.si || 
-                                 '';
+        // This looks at all key types used for stroke index data
+        const strokeIndexValue = hole?.stroke_index ?? 
+                                 hole?.strokeIndex ?? 
+                                 hole?.si ?? 
+                                 hole?.hcp ?? 
+                                 hole?.handicap ?? '';
                                  
         input.value = strokeIndexValue;
     });
@@ -669,7 +670,6 @@ function loadSelectedTee() {
     window.tempYards = selectedTee.holes?.map(h => h.yardage || h.length || 0) || [];
     alert("UK Course Card loaded successfully!");
 }
-
 function saveData() {
     localStorage.setItem('g_players', JSON.stringify(players));
     localStorage.setItem('g_courses', JSON.stringify(courses));
