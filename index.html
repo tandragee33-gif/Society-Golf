@@ -647,43 +647,25 @@ function loadSelectedTee() {
 
     document.getElementById('cName').value = selectedCourseData.club_full_name + ' - ' + (selectedTee.color || 'Tees');
 
-    // Find ALL input elements inside your scorecard grid area
-    const allInputs = document.querySelectorAll('input[type="number"], input.setup-pars-val, input.setup-si-val');
-    
-    // We will separate your inputs into two clean lists based on their physical order on screen
-    let parInputs = [];
-    let siInputs = [];
-    
-    allInputs.forEach(input => {
-        if (input.className.includes('pars') || input.id?.includes('par')) {
-            parInputs.push(input);
-        } else if (input.className.includes('si') || input.id?.includes('si') || input.className.includes('stroke')) {
-            siInputs.push(input);
-        }
+    // 1. Fill Pars
+    document.querySelectorAll('.setup-pars-val').forEach((input, i) => {
+        input.value = selectedTee.holes?.[i]?.par || '';
     });
 
-    // EMERGENCY BACKUP: If the class filters fail, split them half-and-half by layout order
-    if (siInputs.length === 0) {
-        const textBoxes = document.querySelectorAll('.modal-content input[type="number"], #courseSetupTable input');
-        if (textBoxes.length >= 36) {
-            parInputs = Array.from(textBoxes).slice(0, 18);
-            siInputs = Array.from(textBoxes).slice(18, 36);
-        }
-    }
-
-    // 1. Fill the Pars
-    parInputs.forEach((input, i) => {
-        if (i < 18) input.value = selectedTee.holes?.[i]?.par || '';
+    // 2. Fill Stroke Indexes (Catches the exact field name from the UK API)
+    document.querySelectorAll('.setup-si-val').forEach((input, i) => {
+        const hole = selectedTee.holes?.[i];
+        
+        // This maps the stroke index data cleanly from the api to your text box
+        const strokeIndexValue = hole?.stroke_index || 
+                                 hole?.strokeIndex || 
+                                 hole?.si || 
+                                 hole?.hcp || '';
+                                 
+        input.value = strokeIndexValue;
     });
 
-    // 2. Fill the Stroke Indexes directly using the exact API response field
-    siInputs.forEach((input, i) => {
-        if (i < 18) {
-            const hole = selectedTee.holes?.[i];
-            input.value = hole?.stroke_index || hole?.strokeIndex || hole?.si || '';
-        }
-    });
-
+    // 3. Keep Yardages
     window.tempYards = selectedTee.holes?.map(h => h.yardage || h.length || 0) || [];
     alert("UK Course Card loaded successfully!");
 }
