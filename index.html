@@ -499,6 +499,7 @@ function saveGolfApiKey() {
     alert('API Key Saved!');
 }
 async function searchCourse() {
+// Add .trim() at the end to automatically throw away accidental invisible spaces! const apiKey = (localStorage.getItem('golf_api_key') || '').trim(); const search = document.getElementById('courseSearch').value; 
     const apiKey = localStorage.getItem('golf_api_key');
     const search = document.getElementById('courseSearch').value;
 
