@@ -520,17 +520,20 @@ async function searchCourse() {
         if (!response.ok) throw new Error("Server rejected request.");
         const result = await response.json();
         
+        // This safely checks all formats so .forEach NEVER crashes again
         let clubs = [];
-        if (Array.isArray(result)) {
-            clubs = result;
-        } else if (result && Array.isArray(result.data)) {
+        if (result && Array.isArray(result.data)) {
             clubs = result.data;
         } else if (result && Array.isArray(result.clubs)) {
             clubs = result.clubs;
+        } else if (Array.isArray(result)) {
+            clubs = result;
+        } else if (result && typeof result === 'object' && result.name) {
+            clubs = [result];
         }
 
         let html = '';
-        if (clubs.length === 0) {
+        if (clubs.length === 0 || !clubs[0]) {
             html = 'No courses found';
         } else {
             clubs.forEach(club => {
@@ -590,7 +593,7 @@ async function selectCourse(clubId) {
         if (!cardResponse.ok) throw new Error("Failed to load scorecard data.");
         const cardData = await cardResponse.json();
         
-        // Using the existing global variable directly without re-declaring it
+        // Directly saves data to your existing global variable
         selectedCourseData = cardData.data || cardData;
         selectedCourseData.club_full_name = clubName; 
 
@@ -650,12 +653,12 @@ function loadSelectedTee() {
     const teeLabel = selectedTee.color || selectedTee.tee_name || `Tee Set ${Number(teeIndex) + 1}`;
     document.getElementById('cName').value = selectedCourseData.club_full_name + ' - ' + teeLabel;
 
-    // 1. Populate Pars
+    // 1. Fill Pars
     document.querySelectorAll('.setup-pars-val').forEach((input, i) => {
         input.value = selectedTee.holes?.[i]?.par || '';
     });
 
-    // 2. Populate Stroke Indexes (Checking both common API formats)
+    // 2. Fill Stroke Indexes (checks every possible field label)
     document.querySelectorAll('.setup-si-val').forEach((input, i) => {
         const holeData = selectedTee.holes?.[i];
         const strokeIndexValue = holeData?.stroke_index || 
@@ -665,7 +668,7 @@ function loadSelectedTee() {
         input.value = strokeIndexValue;
     });
 
-    // 3. Keep Yardages
+    // 3. Save Yardages
     window.tempYards = selectedTee.holes?.map(h => h.yardage || h.length || 0) || [];
     alert("UK Course Card loaded successfully!");
 }
