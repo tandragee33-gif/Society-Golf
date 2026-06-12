@@ -86,9 +86,9 @@
     <!-- DASHBOARD (HISTORY) -->
     <div id="tab-dash" class="tab-content">
         <div id="dash-main-view">
-            <div class="card" id="past-tourney-list-card">
+ <div class="card" id="past-tourney-list-card">
     <h3>Tournament Titles</h3>
-    <select id="tourneySeason" onchange="renderPastComps()"></select> 
+    <select id="tourneySeason" onchange="renderPastComps()"></select>
     <div id="past-tourney-list"></div>
 </div>
             <div class="card" id="recent-rounds-card">
@@ -1232,23 +1232,29 @@ function resetDoublesSelection() {
 function renderPastComps() {
     const list = document.getElementById('past-tourney-list');
     
-    // 1. Get the currently selected season year from your new dropdown
-    const selectedSeason = document.getElementById('tourneySeason') ? document.getElementById('tourneySeason').value : '';
-    
-    // 2. Filter your tournaments list to only show ones matching that year
-    // (We look at the first 4 characters of c.date because dates are saved as YYYY-MM-DD)
-    const filteredTourneys = pastComps.filter(c => {
-        if (!selectedSeason) return true;
-        return c.date && c.date.substring(0, 4) === selectedSeason;
-    });
-
-    // 3. Display message if no tournaments are found for the selected year
-    if(filteredTourneys.length === 0) { 
-        list.innerHTML = "<p style='font-size:12px; color:#999; padding: 12px;'>No tournament records for this season.</p>";
+    // 1. If there are no overall records at all, stop and display a message
+    if(pastComps.length === 0) { 
+        list.innerHTML = "<p style='font-size:12px; color:#999;'>No tournament records.</p>";
         return; 
     }
     
-    // 4. Render the tournament rows using your original structure, but with the filtered list
+    // 2. Read the year selected in your new dropdown menu
+    const selectedSeason = document.getElementById('tourneySeason') ? document.getElementById('tourneySeason').value : '';
+    
+    // 3. Filter tournaments to match the selected year
+    const filteredTourneys = pastComps.filter(c => {
+        if (!selectedSeason) return true;
+        // Grabs the 4 digit year from the tournament's saved date string
+        return c.date && c.date.substring(0, 4) === selectedSeason;
+    });
+
+    // 4. If no records match that specific season dropdown choice
+    if(filteredTourneys.length === 0) { 
+        list.innerHTML = "<p style='font-size:12px; color:#999; padding: 4px;'>No tournament records for this season.</p>";
+        return; 
+    }
+    
+    // 5. Render rows exactly like your original layout, but using the filtered list
     list.innerHTML = filteredTourneys.sort((a,b)=>b.id - a.id).map(c =>
         `<div class="item-row">
             <span><b>${c.winner}</b><br>
