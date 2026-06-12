@@ -639,26 +639,37 @@ function loadSelectedTee() {
         return;
     }
 
+    // Pull the active tee sets array
     let teeSets = selectedCourseData.tee_sets || selectedCourseData.tees || [];
-    const selectedTee = teeSets[teeIndex] || (teeIndex === "0" ? selectedCourseData : null);
+    const selectedTee = teeSets[teeIndex];
     
     if (!selectedTee || !selectedTee.holes) {
         alert('No holes found for this tee selection.');
         return;
     }
 
-    document.getElementById('cName').value = selectedCourseData.club_full_name + ' - ' + (selectedTee.color || 'Tees');
+    // Fixes the dropdown naming bug
+    const teeLabel = selectedTee.color || selectedTee.tee_name || `Tee Set ${Number(teeIndex) + 1}`;
+    document.getElementById('cName').value = selectedCourseData.club_full_name + ' - ' + teeLabel;
 
+    // 1. LOAD THE 18 PAR VALUES
     document.querySelectorAll('.setup-pars-val').forEach((input, i) => {
         input.value = selectedTee.holes?.[i]?.par || '';
     });
 
+    // 2. LOAD THE 18 STROKE INDEX VALUES
     document.querySelectorAll('.setup-si-val').forEach((input, i) => {
-        input.value = selectedTee.holes?.[i]?.stroke_index || selectedTee.holes?.[i]?.si || selectedTee.holes?.[i]?.hcp || '';
+        // Explicitly checks the direct RapidAPI stroke_index field structure
+        const strokeIndexValue = selectedTee.holes?.[i]?.stroke_index || 
+                                 selectedTee.holes?.[i]?.si || 
+                                 selectedTee.holes?.[i]?.hcp || '';
+        input.value = strokeIndexValue;
     });
 
+    // 3. PRESERVE THE YARDAGES
     window.tempYards = selectedTee.holes?.map(h => h.yardage || h.length || 0) || [];
-    alert("UK Course Card loaded successfully!");
+    
+    alert("UK Course Card loaded successfully with Stroke Indexes!");
 }
 
 function saveData() {
