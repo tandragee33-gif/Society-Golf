@@ -508,8 +508,8 @@ async function searchCourse() {
     }
 
     try {
-        // FIXED: Pointing directly to the production gateway domain required by the API
-        const response = await fetch(`https://uk-golf-api.vercel.app/clubs?search=${encodeURIComponent(search)}`, {
+        // MATCHING THE DASHBOARD: Using the direct .p.rapidapi.com endpoint path
+        const response = await fetch(`https://uk-golf-course-data-api.p.rapidapi.com/clubs?search=${encodeURIComponent(search)}`, {
             method: 'GET',
             headers: {
                 'X-RapidAPI-Key': apiKey,
@@ -518,8 +518,10 @@ async function searchCourse() {
             }
         });
 
-        if (!response.ok) throw new Error("Key rejected by RapidAPI endpoint.");
+        if (!response.ok) throw new Error("Server rejected credentials.");
         const result = await response.json();
+        
+        // Isolate the array list returned by RapidAPI
         const clubs = result.data || result;
 
         let html = '';
@@ -540,7 +542,7 @@ async function searchCourse() {
 
     } catch (err) {
         console.error(err);
-        alert('Search failed: Please verify your X-RapidAPI-Key is entered correctly.');
+        alert('Search failed. Check your browser console (F12) to see if CORS or keys are blocking the request.');
     }
 }
 
@@ -549,8 +551,7 @@ async function selectCourse(clubId, escapedClubName) {
     const clubName = unescape(escapedClubName);
 
     try {
-        // FIXED: Updated endpoint targeting production gateway route
-        const response = await fetch(`https://uk-golf-api.vercel.app/clubs/${clubId}`, {
+        const response = await fetch(`https://uk-golf-course-data-api.p.rapidapi.com/clubs/${clubId}`, {
             method: 'GET',
             headers: {
                 'X-RapidAPI-Key': apiKey,
@@ -561,10 +562,11 @@ async function selectCourse(clubId, escapedClubName) {
 
         const clubProfile = await response.json();
         const clubData = clubProfile.data || clubProfile;
+        
+        // Isolate course index
         const courseId = clubData.courses?.[0]?.id || clubId;
 
-        // FIXED: Updated scorecard request targeting production gateway route
-        const cardResponse = await fetch(`https://uk-golf-api.vercel.app/courses/${courseId}/scorecard`, {
+        const cardResponse = await fetch(`https://uk-golf-course-data-api.p.rapidapi.com/courses/${courseId}/scorecard`, {
             method: 'GET',
             headers: {
                 'X-RapidAPI-Key': apiKey,
@@ -622,7 +624,7 @@ function loadSelectedTee() {
     });
 
     window.tempYards = selectedTee.holes?.map(h => h.yardage || h.length || 0) || [];
-    alert("UK Course Card loaded successfully with Stroke Indexes!");
+    alert("UK Course Card loaded successfully!");
 }
 
 function saveData() {
