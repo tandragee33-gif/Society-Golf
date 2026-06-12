@@ -499,12 +499,8 @@ function saveGolfApiKey() {
     alert('API Key Saved!');
 }
 async function searchCourse() {
-// Add .trim() at the end to automatically throw away accidental invisible spaces! const apiKey = (localStorage.getItem('golf_api_key') || '').trim(); const search = document.getElementById('courseSearch').value; 
-    const apiKey = localStorage.getItem('golf_api_key');
+    const apiKey = (localStorage.getItem('golf_api_key') || '').trim();
     const search = document.getElementById('courseSearch').value;
-
-    // FORCE DISPLAY KEY
-    alert("ATTENTION! Checking your active browser key:\n\n" + apiKey);
 
     if (!search) {
         alert('Enter a course name');
@@ -512,7 +508,8 @@ async function searchCourse() {
     }
 
     try {
-       const response = await fetch(`https://uk-golf-course-data-api.p.rapidapi.com/clubs?search=${encodeURIComponent(search.toLowerCase())}`, { 
+        // FIXED: Pointing directly to the production gateway domain required by the API
+        const response = await fetch(`https://uk-golf-api.vercel.app/clubs?search=${encodeURIComponent(search)}`, {
             method: 'GET',
             headers: {
                 'X-RapidAPI-Key': apiKey,
@@ -521,7 +518,7 @@ async function searchCourse() {
             }
         });
 
-        if (!response.ok) throw new Error("Key rejected by RapidAPI server gateway.");
+        if (!response.ok) throw new Error("Key rejected by RapidAPI endpoint.");
         const result = await response.json();
         const clubs = result.data || result;
 
@@ -548,11 +545,12 @@ async function searchCourse() {
 }
 
 async function selectCourse(clubId, escapedClubName) {
-    const apiKey = localStorage.getItem('golf_api_key');
+    const apiKey = (localStorage.getItem('golf_api_key') || '').trim();
     const clubName = unescape(escapedClubName);
 
     try {
-        const response = await fetch(`https://uk-golf-course-data-api.p.rapidapi.com/clubs/${clubId}`, {
+        // FIXED: Updated endpoint targeting production gateway route
+        const response = await fetch(`https://uk-golf-api.vercel.app/clubs/${clubId}`, {
             method: 'GET',
             headers: {
                 'X-RapidAPI-Key': apiKey,
@@ -565,7 +563,8 @@ async function selectCourse(clubId, escapedClubName) {
         const clubData = clubProfile.data || clubProfile;
         const courseId = clubData.courses?.[0]?.id || clubId;
 
-        const cardResponse = await fetch(`https://uk-golf-course-data-api.p.rapidapi.com/courses/${courseId}/scorecard`, {
+        // FIXED: Updated scorecard request targeting production gateway route
+        const cardResponse = await fetch(`https://uk-golf-api.vercel.app/courses/${courseId}/scorecard`, {
             method: 'GET',
             headers: {
                 'X-RapidAPI-Key': apiKey,
