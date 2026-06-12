@@ -642,6 +642,7 @@ function loadSelectedTee() {
         return;
     }
 
+    // Safely check wherever the app stored your working tee data
     let teeSets = selectedCourseData.extracted_tees || selectedCourseData.tee_sets || selectedCourseData.tees || [];
     const selectedTee = teeSets[teeIndex];
     
@@ -653,23 +654,23 @@ function loadSelectedTee() {
     const teeLabel = selectedTee.color || selectedTee.tee_name || `Tee Set ${Number(teeIndex) + 1}`;
     document.getElementById('cName').value = selectedCourseData.club_full_name + ' - ' + teeLabel;
 
-    // 1. Fill Pars
+    // 1. FILL THE PARS
     document.querySelectorAll('.setup-pars-val').forEach((input, i) => {
         input.value = selectedTee.holes?.[i]?.par || '';
     });
 
-    // 2. Fill Stroke Indexes (checks every possible field label)
+    // 2. FILL THE STROKE INDEXES USING THE EXACT RAPIDAPI UK LABELS
     document.querySelectorAll('.setup-si-val').forEach((input, i) => {
-        const holeData = selectedTee.holes?.[i];
-        const strokeIndexValue = holeData?.stroke_index || 
-                                 holeData?.si || 
-                                 holeData?.hcp || 
-                                 holeData?.handicap || '';
+        const hole = selectedTee.holes?.[i];
+        
+        // This looks directly for 'stroke_index' which is what the UK API uses
+        const strokeIndexValue = hole?.stroke_index || hole?.si || hole?.hcp || '';
         input.value = strokeIndexValue;
     });
 
-    // 3. Save Yardages
+    // 3. KEEP YARDAGES
     window.tempYards = selectedTee.holes?.map(h => h.yardage || h.length || 0) || [];
+    
     alert("UK Course Card loaded successfully!");
 }
 
