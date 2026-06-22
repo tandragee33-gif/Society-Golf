@@ -64,8 +64,6 @@
             .card { box-shadow: none; border: none; }
             #dash-detail { display: block !important; position: absolute; top: 0; width: 100%; }
             .hidden { display: none !important; }
-/* Custom lockdown hidden rule */
-.lock-hidden { display: none !important; }
             #dash-detail.hidden { display: block !important; }
         }
     </style>
@@ -74,15 +72,7 @@
 
 <div class="header no-print">
     <img id="club-logo-display" src="" alt="Logo">
-<div style="order: 2; margin-left: auto; display: flex; align-items: center; gap: 6px;"> <label for="app-mode-select" style="font-size: 12px; font-weight: bold; color: var(--primary); white-space: nowrap;">View:</label> <select id="app-mode-select" onchange="toggleAppMode()" style="width: auto; margin: 0; padding: 6px; font-size: 12px;"> <option value="admin">Admin Mode</option> <option value="player">Player Mode</option> </select> </div> 
     <h1 id="header-club-name">Golf Pro Manager</h1>
-<div style="margin-left: auto; display: flex; align-items: center; gap: 6px;">
-  <label for="app-mode-select" style="font-size: 12px; font-weight: bold; color: var(--primary);">View:</label>
-  <select id="app-mode-select" onchange="toggleAppMode()" style="width: auto; margin: 0; padding: 6px; font-size: 12px;">
-    <option value="admin">Admin Mode</option>
-    <option value="player">Player Mode</option>
-  </select>
-</div>
 </div>
 
 <div class="nav no-print">
@@ -147,25 +137,6 @@
     <!-- ROUND ENTRY -->
     <div id="tab-comp" class="tab-content hidden">
         <div class="card">
-<div class="card" id="player-live-leaderboard-card" style="border-left: 5px solid var(--success); margin-bottom: 15px;">
-  <h3 style="margin-top: 0; color: var(--success); display: flex; align-items: center; gap: 8px;">🏆 Today's Live Leaderboard</h3>
-  <div style="overflow-x: auto;">
-    <table class="stats-table" style="margin-top: 5px;">
-      <thead>
-        <tr>
-          <th>Pos</th>
-          <th>Player</th>
-          <th>Course</th>
-          <th>Gross</th>
-          <th>Stableford</th>
-        </tr>
-      </thead>
-      <tbody id="live-leaderboard-body">
-        <tr><td colspan="5" style="text-align:center; color:#888;">No scores saved for today yet.</td></tr>
-      </tbody>
-    </table>
-  </div>
-</div>
             <h3 id="roundTitle">New Round</h3>
             <input type="hidden" id="editRoundId">
             <label style="font-size:12px;">Date (dd/mm/yyyy):</label>
@@ -432,82 +403,6 @@
 </div>
 
 <script>
-// --- PLAYER MODE & LIVE LEADERBOARD MODULE ---
-
-function toggleAppMode() {
-  const mode = document.getElementById('app-mode-select').value;
-  
-  // Target the structural nav items we want locked down
-  const adminTabs = [
-    document.getElementById('btn-dash'),     // History
-    document.getElementById('btn-team'),     // Team
-    document.getElementById('btn-doubles'),  // Doubles
-    document.getElementById('btn-stats'),    // Scorecards
-    document.getElementById('btn-pairs'),    // Pairs KO
-    document.getElementById('btn-singles'),  // Singles KO
-    document.getElementById('btn-setup')     // Setup panel
-  ];
-
-  // Target specific administrative buttons inside other screens
-  const lockRoundBtn = document.getElementById('btn-lock-round'); // Handicap adjustments
-
-  if (mode === 'player') {
-    // 1. Hide administrative navigation menus completely
-    adminTabs.forEach(tabBtn => {
-      if (tabBtn) tabBtn.classList.add('lock-hidden');
-    });
-    
-    // 2. Lock down and hide the handicap adjustments option
-    if (lockRoundBtn) lockRoundBtn.classList.add('lock-hidden');
-    
-    // 3. Immediately move player focus to score tracking screen
-    showTab('tab-comp');
-    updateLiveLeaderboard();
-  } else {
-    // Admin Mode: Bring back access visibility over everything safely
-    adminTabs.forEach(tabBtn => {
-      if (tabBtn) tabBtn.classList.remove('lock-hidden');
-    });
-    if (lockRoundBtn) lockRoundBtn.classList.remove('lock-hidden');
-  }
-}
-
-function updateLiveLeaderboard() {
-  const tbody = document.getElementById('live-leaderboard-body');
-  if (!tbody) return;
-
-  // Track values matching what is written in the active date input field
-  const currentDateInput = document.getElementById('rDate') ? document.getElementById('rDate').value : '';
-  
-  // Safely filter structural active rounds arrays using existing data records
-  let activeRounds = rounds.filter(r => {
-    return r.date === currentDateInput || formatDateDisplay(r.date) === currentDateInput;
-  });
-
-  if (activeRounds.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#888;">No saved entries matching date: ${currentDateInput || 'N/A'}</td></tr>`;
-    return;
-  }
-
-  // Sort them dynamically by highest points using your current tiebreaker rules
-  activeRounds.sort((a, b) => {
-    if (b.points !== a.points) return b.points - a.points;
-    return getTieBreaker(b.pointsArray) - getTieBreaker(a.pointsArray);
-  });
-
-  // Re-build dashboard leaderboard view cleanly 
-  tbody.innerHTML = activeRounds.map((r, index) => {
-    return `
-      <tr>
-        <td><b>${index + 1}</b></td>
-        <td>${r.playerName || 'Player'}</td>
-        <td>${r.courseName || 'Course'}</td>
-        <td>${r.totalGross || r.gross || 0}</td>
-        <td style="color: var(--success); font-weight: bold;">${r.points || 0} pts</td>
-      </tr>
-    `;
-  }).join('');
-}
 // PUT THIS AT THE TOP OF THE FIRST SCRIPT TAG
 function getScoreColor(pts) {
     if (pts >= 3) return '#27ae60'; // Green (Great)
